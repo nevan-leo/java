@@ -68,3 +68,118 @@
     </build>
 
 </project>
+
+package com.nevanleo.scraper;
+
+public class Internship {
+    private String title;
+    private String company;
+    private String location;
+
+    public Internship(String title, String company, String location) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+    }
+
+    // Getters and Setters
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getCompany() {
+        return company;
+    }
+
+    public void setCompany(String company) {
+        this.company = company;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    @Override
+    public String toString() {
+        return "Internship{" +
+                "title='" + title + '\'' +
+                ", company='" + company + '\'' +
+                ", location='" + location + '\'' +
+                '}';
+    }
+}
+
+package com.nevanleo.scraper;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class InternshipScraperApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(InternshipScraperApplication.class, args);
+    }
+}
+
+package com.nevanleo.scraper;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class InternshipScraperService {
+    public List<Internship> scrapeInternships() throws Exception {
+        String url = "https://example.com/internships"; // Replace with the actual URL
+        Document doc = Jsoup.connect(url).get();
+
+        List<Internship> internships = new ArrayList<>();
+        Elements listings = doc.select(".job-listing"); // Adjust the CSS selectors based on the website's structure
+
+        for (Element listing : listings) {
+            String title = listing.select(".job-title").text();
+            String company = listing.select(".company-name").text();
+            String location = listing.select(".location").text();
+
+            internships.add(new Internship(title, company, location));
+        }
+
+        return internships;
+    }
+}
+
+package com.nevanleo.scraper;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/internships")
+public class InternshipController {
+
+    @Autowired
+    private InternshipScraperService scraperService;
+
+    @GetMapping("/scrape")
+    public List<Internship> scrapeInternships() throws Exception {
+        return scraperService.scrapeInternships();
+    }
+}
+
