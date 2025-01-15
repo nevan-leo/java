@@ -140,24 +140,58 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class InternshipScraperService {
-    public List<Internship> scrapeInternships() throws Exception {
+    private static final Logger logger = LoggerFactory.getLogger(InternshipScraperService.class);
+
+    private static final int MAX_RETRIES = 3;
+    private static final int RETRY_DELAY = 2000; // 2 seconds
+
+    public List<Internship> scrapeInternships() {
         String url = "https://example.com/internships"; // Replace with the actual URL
-        Document doc = Jsoup.connect(url).get();
+        int attempt = 0;
+        Exception lastException = null;
 
-        List<Internship> internships = new ArrayList<>();
-        Elements listings = doc.select(".job-listing"); // Adjust the CSS selectors based on the website's structure
+        while (attempt < MAX_RETRIES) {
+            try {
+                logger.info("Attempting to scrape internships (Attempt {}/{})", attempt + 1, MAX_RETRIES);
+                Document doc = Jsoup.connect(url)
+                        .timeout(10000) // 10 seconds timeout
+                        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                        .get();
 
-        for (Element listing : listings) {
-            String title = listing.select(".job-title").text();
-            String company = listing.select(".company-name").text();
-            String location = listing.select(".location").text();
+                List<Internship> internships = new ArrayList<>();
+                Elements listings = doc.select(".job-listing"); // Adjust CSS selector based on website structure
 
-            internships.add(new Internship(title, company, location));
+                for (Element listing : listings) {
+                    String title = listing.select(".job-title").text();
+                    String company = listing.select(".company-name").text();
+                    String location = listing.select(".location").text();
+
+                    internships.add(new Internship(title, company, location));
+                }
+
+                logger.info("Scraping successful, found {} internships", internships.size());
+                return internships;
+            } catch (Exception e) {
+                lastException = e;
+                logger.error("Error during scraping: {}", e.getMessage());
+                attempt++;
+                try {
+                    Thread.sleep(RETRY_DELAY);
+                } catch (InterruptedException ie) {
+                    logger.error("Retry delay interrupted: {}", ie.getMessage());
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
 
-        return internships;
+        logger.error("Failed to scrape internships after {} attempts", MAX_RETRIES, lastException);
+        throw new RuntimeException("Failed to scrape internships", lastException);
     }
 }
 
